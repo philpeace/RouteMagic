@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Specialized;
 using System.Web;
 using System.Web.Routing;
 using Moq;
 using PowerAssert;
+using RouteMagic.HttpHandlers;
 using RouteMagic.Internals;
 using Xunit;
 
@@ -109,5 +111,58 @@ namespace UnitTests.Internals {
             Assert.Throws<InvalidOperationException>(() => redirectRoute.To(new Mock<RouteBase>().Object));
         }
 
+        [Fact]
+        public void GetHttpHandler_TargetUrl_Contains_QueryString_When_Flag_Set()
+        {
+            // Arrange
+            var httpContext = new Mock<HttpContextBase>();
+            httpContext.Setup(c => c.Request.Path).Returns("/foo");
+            httpContext.Setup(c => c.Request.AppRelativeCurrentExecutionFilePath).Returns("~/foo");
+            httpContext.Setup(c => c.Request.ApplicationPath).Returns("/");
+            var query = "?bar=baz";
+            httpContext.Setup(c => c.Request.QueryString).Returns(HttpUtility.ParseQueryString(query));
+            var requestContext = new RequestContext(httpContext.Object, new RouteData());
+
+            var sourceRouteMock = new Mock<RouteBase>();
+            sourceRouteMock.Setup(r => r.GetVirtualPath(It.IsAny<RequestContext>(), It.IsAny<RouteValueDictionary>())).Returns(new VirtualPathData(sourceRouteMock.Object, "/foo"));
+            var targetRoute = new Mock<RouteBase>();
+            targetRoute.Setup(r => r.GetVirtualPath(It.IsAny<RequestContext>(), It.IsAny<RouteValueDictionary>())).Returns(new VirtualPathData(sourceRouteMock.Object, "/bar"));
+            var redirectRoute = new RedirectRoute(sourceRouteMock.Object, targetRoute.Object, permanent: true);
+            redirectRoute.IncludeQueryStringInRedirect = true;
+
+            // Act
+            var handler = redirectRoute.GetHttpHandler(requestContext);
+
+            // Assert
+            Assert.IsType(typeof(RedirectHttpHandler), handler);
+            PAssert.IsTrue(() => ((RedirectHttpHandler)handler).TargetUrl.EndsWith(query));
+        }
+
+        [Fact]
+        public void GetHttpHandler_TargetUrl_Does_Not_Contain_QueryString_When_Flag_Is_False()
+        {
+            // Arrange
+            var httpContext = new Mock<HttpContextBase>();
+            httpContext.Setup(c => c.Request.Path).Returns("/foo");
+            httpContext.Setup(c => c.Request.AppRelativeCurrentExecutionFilePath).Returns("~/foo");
+            httpContext.Setup(c => c.Request.ApplicationPath).Returns("/");
+            var query = "?bar=baz";
+            httpContext.Setup(c => c.Request.QueryString).Returns(HttpUtility.ParseQueryString(query));
+            var requestContext = new RequestContext(httpContext.Object, new RouteData());
+
+            var sourceRouteMock = new Mock<RouteBase>();
+            sourceRouteMock.Setup(r => r.GetVirtualPath(It.IsAny<RequestContext>(), It.IsAny<RouteValueDictionary>())).Returns(new VirtualPathData(sourceRouteMock.Object, "/foo"));
+            var targetRoute = new Mock<RouteBase>();
+            targetRoute.Setup(r => r.GetVirtualPath(It.IsAny<RequestContext>(), It.IsAny<RouteValueDictionary>())).Returns(new VirtualPathData(sourceRouteMock.Object, "/bar"));
+            var redirectRoute = new RedirectRoute(sourceRouteMock.Object, targetRoute.Object, permanent: true);
+            redirectRoute.IncludeQueryStringInRedirect = false;
+
+            // Act
+            var handler = redirectRoute.GetHttpHandler(requestContext);
+
+            // Assert
+            Assert.IsType(typeof(RedirectHttpHandler), handler);
+            PAssert.IsTrue(() => !((RedirectHttpHandler)handler).TargetUrl.EndsWith(query));
+        }
     }
 }
