@@ -15,3 +15,7 @@ For more information, read the [introduction blog post](http://haacked.com/archi
 * And this blog post on [Editable Routes](http://haacked.com/archive/2010/01/17/editable-routes.aspx)!
 
 RouteMagic supports all these features!
+
+## Changes on this fork
+
+`RedirectRoute` now has `IncludeQueryStringInRedirect` property which will preserve the QueryString from the old route to the new one.
